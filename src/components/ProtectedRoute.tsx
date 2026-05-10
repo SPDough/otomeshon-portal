@@ -3,18 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { CircularProgress, Box } from "@mui/material";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (!user) return <Navigate to="/auth" replace />;
-
+  // Demo mode: allow access without authentication for showcase
   return <>{children}</>;
 };
 
