@@ -11,6 +11,7 @@ import {
   Settings as SettingsIcon,
   ExpandMore, ExpandLess,
   Warning as WarningIcon,
+  AutoAwesome as KnowledgeAssistantIcon,
 } from "@mui/icons-material";
 import { Link as RouterLink, useLocation } from "react-router-dom";
 import { useState } from "react";
@@ -77,6 +78,7 @@ const navSections: NavSection[] = [
     title: "Reporting",
     defaultOpen: false,
     items: [
+      { id: "knowledge-assistant", name: "Knowledge Assistant", icon: <KnowledgeAssistantIcon fontSize="small" />, path: "/knowledge-assistant" },
       { id: "std-reports", name: "Standard Reports", icon: <AnalyticsIcon fontSize="small" />, path: "/knowledge-base" },
       { id: "reg-filings", name: "Regulatory Filings", icon: <PortfolioIcon fontSize="small" />, path: "/knowledge-graph" },
       { id: "custom-queries", name: "Custom Queries", icon: <AnalyticsIcon fontSize="small" />, path: "/platform-config" },
