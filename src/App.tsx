@@ -35,6 +35,7 @@ const Workflows = lazy(() => import("./pages/Workflows"));
 const WorkflowConfiguration = lazy(() => import("./pages/WorkflowConfiguration"));
 const KnowledgeGraph = lazy(() => import("./pages/KnowledgeGraph"));
 const KnowledgeBase = lazy(() => import("./pages/KnowledgeBase"));
+const KnowledgeAssistant = lazy(() => import("./pages/KnowledgeAssistant"));
 const FrontOffice = lazy(() => import("./pages/FrontOffice"));
 const MiddleOffice = lazy(() => import("./pages/MiddleOffice"));
 const BackOffice = lazy(() => import("./pages/BackOffice"));
@@ -77,6 +78,7 @@ const AppRoutes = () => {
         <Route path="/workflow-config" element={withProtection(WorkflowConfiguration)} />
         <Route path="/knowledge-graph" element={withProtection(KnowledgeGraph)} />
         <Route path="/knowledge-base" element={withProtection(KnowledgeBase)} />
+        <Route path="/knowledge-assistant" element={withProtection(KnowledgeAssistant)} />
         <Route path="/agents" element={withProtection(Agents)} />
         <Route path="/agents/:id" element={withProtection(AgentDetail)} />
         <Route path="/front-office" element={withProtection(FrontOffice)} />
