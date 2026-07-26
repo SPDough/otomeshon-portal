@@ -54,6 +54,7 @@ const LayerReporting = lazy(() => import("./pages/platform/LayerReporting"));
 const LayerOutbound = lazy(() => import("./pages/platform/LayerOutbound"));
 const ProcedureViewer = lazy(() => import("./pages/ProcedureViewer"));
 const NavCalculation = lazy(() => import("./pages/NavCalculation"));
+const Reconciliation = lazy(() => import("./pages/Reconciliation"));
 
 const queryClient = new QueryClient();
 
@@ -83,6 +84,7 @@ const AppRoutes = () => {
         <Route path="/agents/:id" element={withProtection(AgentDetail)} />
         <Route path="/front-office" element={withProtection(FrontOffice)} />
         <Route path="/middle-office" element={withProtection(MiddleOffice)} />
+        <Route path="/reconciliation" element={withProtection(Reconciliation)} />
         <Route path="/back-office" element={withProtection(BackOffice)} />
         <Route path="/platform-config" element={withProtection(PlatformConfig)} />
         <Route path="/platform-config/layer-0" element={withProtection(LayerDataCollection)} />

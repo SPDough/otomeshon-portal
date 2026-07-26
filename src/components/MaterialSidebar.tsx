@@ -51,7 +51,7 @@ const navSections: NavSection[] = [
     items: [
       { id: "nav-calc", name: "NAV Calculator", icon: <CalculateIcon fontSize="small" />, path: "/nav-calculation", badge: 2 },
       { id: "price-val", name: "Price Validation", icon: <AnalyticsIcon fontSize="small" />, path: "/workflows" },
-      { id: "exceptions", name: "Exceptions", icon: <WarningIcon fontSize="small" />, path: "/workflows", badge: 5 },
+      { id: "exceptions", name: "Exceptions", icon: <WarningIcon fontSize="small" />, path: "/reconciliation", badge: 5 },
       { id: "nav-approval", name: "NAV Approval", icon: <DashboardIcon fontSize="small" />, path: "/results" },
     ],
   },
@@ -62,6 +62,7 @@ const navSections: NavSection[] = [
       { id: "portfolios", name: "Holdings", icon: <PortfolioIcon fontSize="small" />, path: "/portfolios" },
       { id: "transactions", name: "Transactions", icon: <AnalyticsIcon fontSize="small" />, path: "/front-office" },
       { id: "cash-positions", name: "Cash & Positions", icon: <PortfolioIcon fontSize="small" />, path: "/middle-office" },
+      { id: "reconciliation", name: "Position Reconciliation", icon: <WarningIcon fontSize="small" />, path: "/reconciliation" },
       { id: "corp-actions", name: "Corporate Actions", icon: <AnalyticsIcon fontSize="small" />, path: "/back-office" },
     ],
   },

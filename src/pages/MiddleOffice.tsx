@@ -13,8 +13,8 @@ const MiddleOffice = () => {
   const fm = (id: string) => intl.formatMessage({ id });
 
   const features = [
-    { title: fm("middleOffice.riskManagement"), description: fm("middleOffice.riskManagementDesc"), icon: <ShieldIcon />, path: "/workflows", stats: fm("middleOffice.riskManagementStats"), color: theme.palette.success.main },
-    { title: fm("middleOffice.automationRules"), description: fm("middleOffice.automationRulesDesc"), icon: <AutomationIcon />, path: "/workflows", stats: fm("middleOffice.automationRulesStats"), color: theme.palette.primary.main },
+    { title: fm("middleOffice.riskManagement"), description: fm("middleOffice.riskManagementDesc"), icon: <ShieldIcon />, path: "/reconciliation", stats: fm("middleOffice.riskManagementStats"), color: theme.palette.success.main },
+    { title: fm("middleOffice.automationRules"), description: fm("middleOffice.automationRulesDesc"), icon: <AutomationIcon />, path: "/reconciliation", stats: fm("middleOffice.automationRulesStats"), color: theme.palette.primary.main },
     { title: fm("middleOffice.processFlows"), description: fm("middleOffice.processFlowsDesc"), icon: <WorkflowIcon />, path: "/workflow-config", stats: fm("middleOffice.processFlowsStats"), color: theme.palette.info.main },
     { title: fm("middleOffice.scheduledTasks"), description: fm("middleOffice.scheduledTasksDesc"), icon: <ScheduleIcon />, path: "/workflow-config", stats: fm("middleOffice.scheduledTasksStats"), color: theme.palette.warning.main },
     { title: fm("middleOffice.analytics"), description: fm("middleOffice.analyticsDesc"), icon: <AnalyticsIcon />, path: "/results", stats: fm("middleOffice.analyticsStats"), color: theme.palette.secondary.main },
