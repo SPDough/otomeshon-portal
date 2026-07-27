@@ -42,3 +42,36 @@ export async function explainOversightBreak(breakId: string): Promise<Record<str
     `/api/v1/oversight/breaks/${encodeURIComponent(breakId)}/explain`,
   );
 }
+
+export type BreakStatus =
+  | "open"
+  | "acknowledged"
+  | "in_review"
+  | "resolved"
+  | "dismissed";
+
+export type BreakStatusUpdate = {
+  status: BreakStatus;
+  note?: string;
+  assignee?: string;
+  actor?: string;
+};
+
+export async function updateBreakStatus(
+  breakId: string,
+  update: BreakStatusUpdate,
+): Promise<Record<string, unknown>> {
+  return apiFetch<Record<string, unknown>>(
+    `/api/v1/oversight/breaks/${encodeURIComponent(breakId)}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ actor: "portal-user", ...update }),
+    },
+  );
+}
+
+export async function listBreakEvents(breakId: string): Promise<Record<string, unknown>[]> {
+  return apiFetch<Record<string, unknown>[]>(
+    `/api/v1/oversight/breaks/${encodeURIComponent(breakId)}/events`,
+  );
+}
