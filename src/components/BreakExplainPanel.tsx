@@ -1,16 +1,23 @@
 import { useEffect, useState } from "react";
 import {
   Box,
+  Button,
   Chip,
   CircularProgress,
   Stack,
   Tab,
   Tabs,
+  TextField,
   Typography,
   alpha,
   useTheme,
 } from "@mui/material";
-import { explainOversightBreak } from "@/lib/oversightApi";
+import {
+  explainOversightBreak,
+  listBreakEvents,
+  updateBreakStatus,
+  type BreakStatus,
+} from "@/lib/oversightApi";
 
 type ExplainPayload = {
   break_id: string;
@@ -19,6 +26,7 @@ type ExplainPayload = {
   plain_language?: string;
   severity?: string;
   status?: string;
+  assignee?: string | null;
   rule?: {
     rule_id?: string;
     rule_version?: string;
@@ -33,17 +41,47 @@ type ExplainPayload = {
   };
 };
 
+type BreakEvent = {
+  from_status?: string;
+  to_status?: string;
+  actor?: string;
+  note?: string | null;
+  assignee?: string | null;
+  created_at?: string;
+};
+
 type Props = {
   breakId: string;
   accountId: string;
   securityId?: string;
   fallbackExplanation?: string;
   reasonCode?: string;
+  onStatusChange?: () => void;
+};
+
+const NEXT_ACTIONS: Record<string, { label: string; status: BreakStatus }[]> = {
+  open: [
+    { label: "Acknowledge", status: "acknowledged" },
+    { label: "In review", status: "in_review" },
+    { label: "Resolve", status: "resolved" },
+    { label: "Dismiss", status: "dismissed" },
+  ],
+  acknowledged: [
+    { label: "In review", status: "in_review" },
+    { label: "Resolve", status: "resolved" },
+    { label: "Dismiss", status: "dismissed" },
+  ],
+  in_review: [
+    { label: "Resolve", status: "resolved" },
+    { label: "Dismiss", status: "dismissed" },
+  ],
+  resolved: [{ label: "Reopen", status: "open" }],
+  dismissed: [{ label: "Reopen", status: "open" }],
 };
 
 /**
  * Progressive disclosure for break meaning — portal consumes backend explain API.
- * Operator → Control → Power user. No rule logic lives here.
+ * Operator → Control → Power user. Triage calls backend status transitions only.
  */
 export default function BreakExplainPanel({
   breakId,
@@ -51,20 +89,46 @@ export default function BreakExplainPanel({
   securityId,
   fallbackExplanation,
   reasonCode,
+  onStatusChange,
 }: Props) {
   const theme = useTheme();
   const [tab, setTab] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [explain, setExplain] = useState<ExplainPayload | null>(null);
+  const [events, setEvents] = useState<BreakEvent[]>([]);
+  const [assignee, setAssignee] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const reload = () => {
+    setLoading(true);
+    setError(null);
+    Promise.all([explainOversightBreak(breakId), listBreakEvents(breakId)])
+      .then(([data, trail]) => {
+        setExplain(data as ExplainPayload);
+        setEvents(trail as BreakEvent[]);
+        const a = (data as ExplainPayload).assignee;
+        if (typeof a === "string" && a) setAssignee(a);
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : "Failed to load explanation");
+      })
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    explainOversightBreak(breakId)
-      .then((data) => {
-        if (!cancelled) setExplain(data as ExplainPayload);
+    Promise.all([explainOversightBreak(breakId), listBreakEvents(breakId)])
+      .then(([data, trail]) => {
+        if (cancelled) return;
+        setExplain(data as ExplainPayload);
+        setEvents(trail as BreakEvent[]);
+        const a = (data as ExplainPayload).assignee;
+        if (typeof a === "string" && a) setAssignee(a);
       })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -78,6 +142,28 @@ export default function BreakExplainPanel({
       cancelled = true;
     };
   }, [breakId]);
+
+  const currentStatus = (explain?.status || "open").toLowerCase();
+  const actions = NEXT_ACTIONS[currentStatus] || [];
+
+  const runTransition = async (status: BreakStatus) => {
+    setBusy(true);
+    setActionError(null);
+    try {
+      await updateBreakStatus(breakId, {
+        status,
+        assignee: assignee.trim() || undefined,
+        note: note.trim() || undefined,
+      });
+      setNote("");
+      reload();
+      onStatusChange?.();
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : "Transition failed");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <Box
@@ -98,12 +184,20 @@ export default function BreakExplainPanel({
           {accountId}
           {securityId ? ` · ${securityId}` : ""}
         </Typography>
-        <Chip
-          size="small"
-          label={reasonCode || explain?.headline || "BREAK"}
-          color="error"
-          variant="outlined"
-        />
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <Chip
+            size="small"
+            label={reasonCode || explain?.headline || "BREAK"}
+            color="error"
+            variant="outlined"
+          />
+          {explain?.status && (
+            <Chip size="small" label={explain.status} variant="outlined" />
+          )}
+          {explain?.assignee && (
+            <Chip size="small" label={`Owner: ${explain.assignee}`} />
+          )}
+        </Stack>
       </Stack>
 
       {loading && (
@@ -206,6 +300,71 @@ export default function BreakExplainPanel({
               </Typography>
             </Box>
           )}
+
+          <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: "divider" }}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              Triage
+            </Typography>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1}
+              sx={{ mb: 1 }}
+            >
+              <TextField
+                size="small"
+                label="Assignee"
+                value={assignee}
+                onChange={(e) => setAssignee(e.target.value)}
+                placeholder="ops.desk"
+                sx={{ minWidth: 160 }}
+              />
+              <TextField
+                size="small"
+                label="Note"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                fullWidth
+              />
+            </Stack>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              {actions.map((action) => (
+                <Button
+                  key={action.status}
+                  size="small"
+                  variant="outlined"
+                  disabled={busy}
+                  onClick={() => void runTransition(action.status)}
+                >
+                  {action.label}
+                </Button>
+              ))}
+            </Stack>
+            {actionError && (
+              <Typography variant="caption" color="error" sx={{ mt: 1, display: "block" }}>
+                {actionError}
+              </Typography>
+            )}
+            {events.length > 0 && (
+              <Box sx={{ mt: 1.5 }}>
+                <Typography variant="caption" color="text.secondary" component="div">
+                  Audit trail
+                </Typography>
+                {events.map((ev, idx) => (
+                  <Typography
+                    key={`${ev.created_at}-${idx}`}
+                    variant="caption"
+                    color="text.secondary"
+                    component="div"
+                  >
+                    {ev.from_status} → {ev.to_status}
+                    {ev.assignee ? ` · ${ev.assignee}` : ""}
+                    {ev.note ? ` — ${ev.note}` : ""}
+                    {ev.actor ? ` (${ev.actor})` : ""}
+                  </Typography>
+                ))}
+              </Box>
+            )}
+          </Box>
         </>
       )}
     </Box>

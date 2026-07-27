@@ -320,6 +320,11 @@ const Reconciliation = () => {
                           fallbackExplanation={
                             item.payload.explanation || breakDoc?.payload.explanation
                           }
+                          onStatusChange={() => {
+                            void queryClient.invalidateQueries({
+                              queryKey: ["oversight-snapshot"],
+                            });
+                          }}
                         />
                       );
                     })}
