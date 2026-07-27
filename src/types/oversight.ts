@@ -1,4 +1,4 @@
-/** Types for Vellum custodian oversight P0 slice. */
+/** Types for Vellum custodian oversight (backend moat control objects). */
 
 export type OversightSummary = {
   position_pairs: number;
@@ -7,6 +7,16 @@ export type OversightSummary = {
   missing_leg: number;
   rule_family: string;
   rule_version: string;
+  source?: string;
+};
+
+export type OversightRunSummary = {
+  run_id: string;
+  ran_at: string;
+  summary: OversightSummary;
+  source?: string;
+  rule_family?: string;
+  rule_version?: string;
 };
 
 export type OversightComparison = {
@@ -20,7 +30,12 @@ export type OversightComparison = {
   oms_contract_id?: string | null;
   abor_contract_id?: string | null;
   break_id?: string;
+  break_ids?: string[];
   rule_result_id?: string;
+  rule_result_ids?: string[];
+  oms_market_value?: number | null;
+  abor_market_value?: number | null;
+  absolute_market_value_difference?: number | null;
 };
 
 export type OversightPosition = {
@@ -82,6 +97,7 @@ export type OversightSnapshot = {
   run_id: string;
   ran_at: string;
   summary: OversightSummary;
+  source?: string;
   positions: OversightPosition[];
   comparisons: OversightComparison[];
   rule_results: OversightRuleResult[];

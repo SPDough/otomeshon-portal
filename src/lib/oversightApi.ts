@@ -1,4 +1,8 @@
-import type { NativeRuleDefinition, OversightSnapshot } from "@/types/oversight";
+import type {
+  NativeRuleDefinition,
+  OversightRunSummary,
+  OversightSnapshot,
+} from "@/types/oversight";
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? "http://localhost:8000") as string;
 
@@ -18,10 +22,23 @@ export async function runOversightSlice(): Promise<OversightSnapshot> {
   return apiFetch<OversightSnapshot>("/api/v1/oversight/run", { method: "POST" });
 }
 
-export async function getOversightSnapshot(): Promise<OversightSnapshot> {
-  return apiFetch<OversightSnapshot>("/api/v1/oversight/snapshot");
+export async function runSampleCsvIngest(): Promise<OversightSnapshot> {
+  return apiFetch<OversightSnapshot>("/api/v1/oversight/ingest/sample-csv", {
+    method: "POST",
+  });
 }
 
-export async function listNativeRuleDefinitions(): Promise<NativeRuleDefinition[]> {
-  return apiFetch<NativeRuleDefinition[]>("/api/v1/rules/definitions");
+export async function getOversightSnapshot(runId?: string): Promise<OversightSnapshot> {
+  const qs = runId ? `?run_id=${encodeURIComponent(runId)}` : "";
+  return apiFetch<OversightSnapshot>(`/api/v1/oversight/snapshot${qs}`);
+}
+
+export async function listOversightRuns(limit = 10): Promise<OversightRunSummary[]> {
+  return apiFetch<OversightRunSummary[]>(`/api/v1/oversight/runs?limit=${limit}`);
+}
+
+export async function explainOversightBreak(breakId: string): Promise<Record<string, unknown>> {
+  return apiFetch<Record<string, unknown>>(
+    `/api/v1/oversight/breaks/${encodeURIComponent(breakId)}/explain`,
+  );
 }

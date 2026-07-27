@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Alert,
@@ -22,7 +22,13 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import AnimatedPage, { fadeInUp } from "@/components/AnimatedPage";
 import AppBreadcrumb from "@/components/AppBreadcrumb";
-import { getOversightSnapshot, runOversightSlice } from "@/lib/oversightApi";
+import BreakExplainPanel from "@/components/BreakExplainPanel";
+import {
+  getOversightSnapshot,
+  listOversightRuns,
+  runOversightSlice,
+  runSampleCsvIngest,
+} from "@/lib/oversightApi";
 import type { OversightComparison } from "@/types/oversight";
 import { motion } from "framer-motion";
 
@@ -35,17 +41,35 @@ const statusColor = (status: string) => {
 const Reconciliation = () => {
   const theme = useTheme();
   const queryClient = useQueryClient();
+  const [selectedRunId, setSelectedRunId] = useState<string | undefined>(undefined);
+
+  const runsQuery = useQuery({
+    queryKey: ["oversight-runs"],
+    queryFn: () => listOversightRuns(10),
+    retry: 1,
+  });
 
   const snapshotQuery = useQuery({
-    queryKey: ["oversight-snapshot"],
-    queryFn: getOversightSnapshot,
+    queryKey: ["oversight-snapshot", selectedRunId ?? "latest"],
+    queryFn: () => getOversightSnapshot(selectedRunId),
     retry: 1,
   });
 
   const runMutation = useMutation({
     mutationFn: runOversightSlice,
     onSuccess: (data) => {
-      queryClient.setQueryData(["oversight-snapshot"], data);
+      setSelectedRunId(data.run_id);
+      queryClient.setQueryData(["oversight-snapshot", data.run_id], data);
+      queryClient.invalidateQueries({ queryKey: ["oversight-runs"] });
+    },
+  });
+
+  const csvMutation = useMutation({
+    mutationFn: runSampleCsvIngest,
+    onSuccess: (data) => {
+      setSelectedRunId(data.run_id);
+      queryClient.setQueryData(["oversight-snapshot", data.run_id], data);
+      queryClient.invalidateQueries({ queryKey: ["oversight-runs"] });
     },
   });
 
@@ -58,17 +82,11 @@ const Reconciliation = () => {
     return map;
   }, [snapshot]);
 
-  const resultsById = useMemo(() => {
-    const map = new Map<string, NonNullable<typeof snapshot>["rule_results"][number]>();
-    for (const item of snapshot?.rule_results ?? []) {
-      map.set(item.payload.rule_result_id, item);
-    }
-    return map;
-  }, [snapshot]);
-
   const error =
     (runMutation.error as Error | null)?.message ||
-    (snapshotQuery.error as Error | null)?.message;
+    (csvMutation.error as Error | null)?.message ||
+    (snapshotQuery.error as Error | null)?.message ||
+    (runsQuery.error as Error | null)?.message;
 
   return (
     <AnimatedPage>
@@ -106,15 +124,19 @@ const Reconciliation = () => {
                 Position Reconciliation
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 640 }}>
-                OMS intent vs ABOR/custodian outcome, evaluated by Vellum JSON-first
-                deterministic rules.
+                OMS intent vs ABOR/custodian outcome from Vellum backend control
+                objects — deterministic rules, durable run history, evidence for
+                every expertise level.
               </Typography>
             </Box>
             <Stack direction="row" spacing={1}>
               <Button
                 variant="outlined"
                 startIcon={<RefreshIcon />}
-                onClick={() => snapshotQuery.refetch()}
+                onClick={() => {
+                  snapshotQuery.refetch();
+                  runsQuery.refetch();
+                }}
                 disabled={snapshotQuery.isFetching}
               >
                 Refresh
@@ -123,9 +145,16 @@ const Reconciliation = () => {
                 variant="contained"
                 startIcon={<PlayArrowIcon />}
                 onClick={() => runMutation.mutate()}
-                disabled={runMutation.isPending}
+                disabled={runMutation.isPending || csvMutation.isPending}
               >
-                Run slice
+                Run fixtures
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => csvMutation.mutate()}
+                disabled={runMutation.isPending || csvMutation.isPending}
+              >
+                Run sample CSV
               </Button>
             </Stack>
           </Box>
@@ -134,9 +163,61 @@ const Reconciliation = () => {
         {error && (
           <Alert severity="error" sx={{ mb: 3 }}>
             {error}. Ensure Vellum is running at{" "}
-            {import.meta.env.VITE_API_URL ?? "http://localhost:8000"} and CORS allows
-            this origin.
+            {import.meta.env.VITE_API_URL ?? "http://localhost:8000"}, migration 006
+            is applied, and CORS allows this origin.
           </Alert>
+        )}
+
+        {(runsQuery.data?.length ?? 0) > 0 && (
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                Run history
+              </Typography>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>When</TableCell>
+                    <TableCell>Run</TableCell>
+                    <TableCell align="right">Breaks</TableCell>
+                    <TableCell align="right">Matched</TableCell>
+                    <TableCell>Rule</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {runsQuery.data?.map((run) => {
+                    const active =
+                      (selectedRunId ?? snapshot?.run_id) === run.run_id;
+                    return (
+                      <TableRow
+                        key={run.run_id}
+                        hover
+                        selected={active}
+                        sx={{ cursor: "pointer" }}
+                        onClick={() => setSelectedRunId(run.run_id)}
+                      >
+                        <TableCell>
+                          {new Date(run.ran_at).toLocaleString()}
+                        </TableCell>
+                        <TableCell>{run.run_id.slice(0, 8)}</TableCell>
+                        <TableCell align="right">
+                          {run.summary?.breaks ?? "—"}
+                        </TableCell>
+                        <TableCell align="right">
+                          {run.summary?.matched ?? "—"}
+                        </TableCell>
+                        <TableCell>
+                          {(run.rule_family || run.summary?.rule_family || "")
+                            .split(".")
+                            .slice(-1)[0] || "—"}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         )}
 
         {snapshot && (
@@ -224,57 +305,22 @@ const Reconciliation = () => {
                   <Stack spacing={2}>
                     {snapshot.breaks.map((item) => {
                       const comparison = snapshot.comparisons.find(
-                        (c) => c.break_id === item.payload.break_id,
+                        (c) =>
+                          c.break_id === item.payload.break_id ||
+                          (c.break_ids || []).includes(item.payload.break_id),
                       );
-                      const result = comparison?.rule_result_id
-                        ? resultsById.get(comparison.rule_result_id)
-                        : undefined;
                       const breakDoc = breaksById.get(item.payload.break_id);
                       return (
-                        <Box
+                        <BreakExplainPanel
                           key={item.payload.break_id}
-                          sx={{
-                            p: 2,
-                            border: 1,
-                            borderColor: "divider",
-                            borderRadius: 1,
-                          }}
-                        >
-                          <Stack
-                            direction={{ xs: "column", sm: "row" }}
-                            justifyContent="space-between"
-                            spacing={1}
-                            sx={{ mb: 1 }}
-                          >
-                            <Typography fontWeight={600}>
-                              {item.payload.account_id} · {comparison?.security_id}
-                            </Typography>
-                            <Chip
-                              size="small"
-                              label={item.payload.reason_code}
-                              color="error"
-                              variant="outlined"
-                            />
-                          </Stack>
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                            {item.payload.explanation || breakDoc?.payload.explanation}
-                          </Typography>
-                          {result?.payload.evidence_snapshot && (
-                            <Typography
-                              component="pre"
-                              variant="caption"
-                              sx={{
-                                m: 0,
-                                p: 1.5,
-                                bgcolor: alpha(theme.palette.text.primary, 0.04),
-                                borderRadius: 1,
-                                overflow: "auto",
-                              }}
-                            >
-                              {JSON.stringify(result.payload.evidence_snapshot, null, 2)}
-                            </Typography>
-                          )}
-                        </Box>
+                          breakId={item.payload.break_id}
+                          accountId={item.payload.account_id}
+                          securityId={comparison?.security_id}
+                          reasonCode={item.payload.reason_code}
+                          fallbackExplanation={
+                            item.payload.explanation || breakDoc?.payload.explanation
+                          }
+                        />
                       );
                     })}
                   </Stack>
